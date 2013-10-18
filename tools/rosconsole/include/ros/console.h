@@ -50,10 +50,6 @@
   #define ROSCONSOLE_DECL
 #endif
 
-// TODO: this header is no longer needed to be included here, but removing it will break various code that incorrectly does not itself include log4cxx/logger.h
-// We should vet all the code using log4cxx directly and make sure the includes/link flags are used in those packages, and then we can remove this include
-#include <log4cxx/logger.h>
-
 #ifdef __GNUC__
 #if __GNUC__ >= 3
 #define ROSCONSOLE_PRINTF_ATTRIBUTE(a, b) __attribute__ ((__format__ (__printf__, a, b)));
@@ -171,7 +167,6 @@ struct FilterParams
   const char* message;                      ///< [input] The formatted message that will be output
 
   // input/output parameters
-  log4cxx::LoggerPtr logger;                ///< [input/output] Logger that this message will be output to.  If changed, uses the new logger
   Level level;                              ///< [input/output] Severity level.  If changed, uses the new level
 
   // output parameters
@@ -229,17 +224,6 @@ ROSCONSOLE_DECL void setLogLocationLevel(LogLocation* loc, Level level);
  */
 ROSCONSOLE_DECL void checkLogLocationEnabled(LogLocation* loc);
 
-/**
- * \brief Internal
- */
-struct LogLocation
-{
-  bool initialized_;
-  bool logger_enabled_;
-  ::ros::console::Level level_;
-  log4cxx::Logger* logger_;
-};
-
 ROSCONSOLE_DECL void vformatToBuffer(boost::shared_array<char>& buffer, size_t& buffer_size, const char* fmt, va_list args);
 ROSCONSOLE_DECL void formatToBuffer(boost::shared_array<char>& buffer, size_t& buffer_size, const char* fmt, ...);
 ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
@@ -296,27 +280,12 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \brief Initializes the rosconsole library.  Usually unnecessary to call directly.
  */
 #define ROSCONSOLE_AUTOINIT \
-  do \
-  { \
-    if (ROS_UNLIKELY(!::ros::console::g_initialized)) \
-    { \
-      ::ros::console::initialize(); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 #define ROSCONSOLE_DEFINE_LOCATION(cond, level, name) \
-  ROSCONSOLE_AUTOINIT; \
-  static ::ros::console::LogLocation loc = {false, false, ::ros::console::levels::Count, 0}; /* Initialized at compile-time */ \
-  if (ROS_UNLIKELY(!loc.initialized_)) \
-  { \
-    initializeLogLocation(&loc, name, level); \
-  } \
-  if (ROS_UNLIKELY(loc.level_ != level)) \
-  { \
-    setLogLocationLevel(&loc, level); \
-    checkLogLocationEnabled(&loc); \
-  } \
-  bool enabled = loc.logger_enabled_ && (cond);
+  do { \
+  } while (0)
 
 #define ROSCONSOLE_PRINT_AT_LOCATION_WITH_FILTER(filter, ...) \
     ::ros::console::print(filter, loc.logger_, loc.level_, __FILE__, __LINE__, __ROSCONSOLE_FUNCTION__, __VA_ARGS__)
@@ -326,11 +295,7 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
 
 // inside a macro which uses args use only well namespaced variable names in order to not overlay variables coming in via args
 #define ROSCONSOLE_PRINT_STREAM_AT_LOCATION_WITH_FILTER(filter, args) \
-  do \
-  { \
-    std::stringstream __rosconsole_print_stream_at_location_with_filter__ss__; \
-    __rosconsole_print_stream_at_location_with_filter__ss__ << args; \
-    ::ros::console::print(filter, loc.logger_, loc.level_, __rosconsole_print_stream_at_location_with_filter__ss__, __FILE__, __LINE__, __ROSCONSOLE_FUNCTION__); \
+  do { \
   } while (0)
 
 #define ROSCONSOLE_PRINT_STREAM_AT_LOCATION(args) \
@@ -346,15 +311,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param name Name of the logger.  Note that this is the fully qualified name, and does NOT include "ros.<package_name>".  Use ROSCONSOLE_DEFAULT_NAME if you would like to use the default name.
  */
 #define ROS_LOG_COND(cond, level, name, ...) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(cond, level, name); \
-    \
-    if (ROS_UNLIKELY(enabled)) \
-    { \
-      ROSCONSOLE_PRINT_AT_LOCATION(__VA_ARGS__); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 /**
  * \brief Log to a given named logger at a given verbosity level, only if a given condition has been met, with stream-style formatting
@@ -366,14 +324,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param name Name of the logger.  Note that this is the fully qualified name, and does NOT include "ros.<package_name>".  Use ROSCONSOLE_DEFAULT_NAME if you would like to use the default name.
  */
 #define ROS_LOG_STREAM_COND(cond, level, name, args) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(cond, level, name); \
-    if (ROS_UNLIKELY(enabled)) \
-    { \
-      ROSCONSOLE_PRINT_STREAM_AT_LOCATION(args); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 /**
  * \brief Log to a given named logger at a given verbosity level, only the first time it is hit when enabled, with printf-style formatting
@@ -382,16 +334,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param name Name of the logger.  Note that this is the fully qualified name, and does NOT include "ros.<package_name>".  Use ROSCONSOLE_DEFAULT_NAME if you would like to use the default name.
  */
 #define ROS_LOG_ONCE(level, name, ...) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(true, level, name); \
-    static bool hit = false; \
-    if (ROS_UNLIKELY(enabled) && ROS_UNLIKELY(!hit)) \
-    { \
-      hit = true; \
-      ROSCONSOLE_PRINT_AT_LOCATION(__VA_ARGS__); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 // inside a macro which uses args use only well namespaced variable names in order to not overlay variables coming in via args
 /**
@@ -401,16 +345,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param name Name of the logger.  Note that this is the fully qualified name, and does NOT include "ros.<package_name>".  Use ROSCONSOLE_DEFAULT_NAME if you would like to use the default name.
  */
 #define ROS_LOG_STREAM_ONCE(level, name, args) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(true, level, name); \
-    static bool __ros_log_stream_once__hit__ = false; \
-    if (ROS_UNLIKELY(enabled) && ROS_UNLIKELY(!__ros_log_stream_once__hit__)) \
-    { \
-      __ros_log_stream_once__hit__ = true; \
-      ROSCONSOLE_PRINT_STREAM_AT_LOCATION(args); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 /**
  * \brief Log to a given named logger at a given verbosity level, limited to a specific rate of printing, with printf-style formatting
@@ -420,17 +356,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param rate The rate it should actually trigger at
  */
 #define ROS_LOG_THROTTLE(rate, level, name, ...) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(true, level, name); \
-    static double last_hit = 0.0; \
-    ::ros::Time now = ::ros::Time::now(); \
-    if (ROS_UNLIKELY(enabled) && ROS_UNLIKELY(last_hit + rate <= now.toSec())) \
-    { \
-      last_hit = now.toSec(); \
-      ROSCONSOLE_PRINT_AT_LOCATION(__VA_ARGS__); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 // inside a macro which uses args use only well namespaced variable names in order to not overlay variables coming in via args
 /**
@@ -441,17 +368,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param rate The rate it should actually trigger at
  */
 #define ROS_LOG_STREAM_THROTTLE(rate, level, name, args) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(true, level, name); \
-    static double __ros_log_stream_throttle__last_hit__ = 0.0; \
-    ::ros::Time __ros_log_stream_throttle__now__ = ::ros::Time::now(); \
-    if (ROS_UNLIKELY(enabled) && ROS_UNLIKELY(__ros_log_stream_throttle__last_hit__ + rate <= __ros_log_stream_throttle__now__.toSec())) \
-    { \
-      __ros_log_stream_throttle__last_hit__ = __ros_log_stream_throttle__now__.toSec(); \
-      ROSCONSOLE_PRINT_STREAM_AT_LOCATION(args); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 /**
  * \brief Log to a given named logger at a given verbosity level, with user-defined filtering, with printf-style formatting
@@ -461,14 +379,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param name Name of the logger.  Note that this is the fully qualified name, and does NOT include "ros.<package_name>".  Use ROSCONSOLE_DEFAULT_NAME if you would like to use the default name.
  */
 #define ROS_LOG_FILTER(filter, level, name, ...) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(true, level, name); \
-    if (ROS_UNLIKELY(enabled) && (filter)->isEnabled()) \
-    { \
-      ROSCONSOLE_PRINT_AT_LOCATION_WITH_FILTER(filter, __VA_ARGS__); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 /**
  * \brief Log to a given named logger at a given verbosity level, with user-defined filtering, with stream-style formatting
@@ -478,14 +390,8 @@ ROSCONSOLE_DECL std::string formatToString(const char* fmt, ...);
  * \param name Name of the logger.  Note that this is the fully qualified name, and does NOT include "ros.<package_name>".  Use ROSCONSOLE_DEFAULT_NAME if you would like to use the default name.
  */
 #define ROS_LOG_STREAM_FILTER(filter, level, name, args) \
-  do \
-  { \
-    ROSCONSOLE_DEFINE_LOCATION(true, level, name); \
-    if (ROS_UNLIKELY(enabled) && (filter)->isEnabled()) \
-    { \
-      ROSCONSOLE_PRINT_STREAM_AT_LOCATION_WITH_FILTER(filter, args); \
-    } \
-  } while(0)
+  do { \
+  } while (0)
 
 /**
  * \brief Log to a given named logger at a given verbosity level, with printf-style formatting

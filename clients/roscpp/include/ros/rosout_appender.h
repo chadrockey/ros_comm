@@ -38,8 +38,6 @@
 #include <ros/message_forward.h>
 #include "common.h"
 
-#include "log4cxx/appenderskeleton.h"
-
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 
@@ -57,7 +55,7 @@ class Publication;
 typedef boost::shared_ptr<Publication> PublicationPtr;
 typedef boost::weak_ptr<Publication> PublicationWPtr;
 
-class ROSCPP_DECL ROSOutAppender : public log4cxx::AppenderSkeleton
+class ROSCPP_DECL ROSOutAppender
 {
 public:
   ROSOutAppender();
@@ -66,10 +64,8 @@ public:
   const std::string& getLastError();
 
 protected:
-  virtual void append(const log4cxx::spi::LoggingEventPtr& event, log4cxx::helpers::Pool& pool);
-
-  virtual void close() {}
-  virtual bool requiresLayout() const { return false; }
+  void close() {}
+  bool requiresLayout() const { return false; }
 
   void logThread();
 
@@ -85,7 +81,7 @@ protected:
 };
 
 //LOG4CXX_PTR_DEF(ROSOutAppender);
-typedef log4cxx::helpers::ObjectPtrT<ROSOutAppender> ROSOutAppenderPtr;
+typedef boost::shared_ptr<ROSOutAppender> ROSOutAppenderPtr;
 
 } // namespace ros
 

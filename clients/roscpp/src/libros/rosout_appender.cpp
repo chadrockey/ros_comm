@@ -39,11 +39,6 @@
 #include "ros/advertise_options.h"
 #include "ros/names.h"
 
-#include <log4cxx/spi/loggingevent.h>
-#ifdef _MSC_VER
-  #include "log4cxx/helpers/transcoder.h" // Have to be able to encode wchar LogStrings on windows.
-#endif
-
 #ifdef WIN32
   #ifdef ERROR
     // ach, windows.h polluting everything again,
@@ -82,66 +77,6 @@ ROSOutAppender::~ROSOutAppender()
 const std::string&  ROSOutAppender::getLastError()
 {
   return last_error_;
-}
-
-void ROSOutAppender::append(const log4cxx::spi::LoggingEventPtr& event, log4cxx::helpers::Pool& pool)
-{
-  rosgraph_msgs::LogPtr msg(new rosgraph_msgs::Log);
-
-  msg->header.stamp = ros::Time::now();
-
-  if (event->getLevel() == log4cxx::Level::getFatal())
-  {
-    msg->level = rosgraph_msgs::Log::FATAL;
-    #ifdef _MSC_VER
-      LOG4CXX_ENCODE_CHAR(tmpstr, event->getMessage()); // has to handle LogString with wchar types.
-      last_error_ = tmpstr; // tmpstr gets instantiated inside the LOG4CXX_ENCODE_CHAR macro
-    #else
-    last_error_ = event->getMessage();
-    #endif
-
-  }
-  else if (event->getLevel() == log4cxx::Level::getError())
-  {
-    msg->level = rosgraph_msgs::Log::ERROR;
-    #ifdef _MSC_VER
-      LOG4CXX_ENCODE_CHAR(tmpstr, event->getMessage()); // has to handle LogString with wchar types.
-      last_error_ = tmpstr; // tmpstr gets instantiated inside the LOG4CXX_ENCODE_CHAR macro
-    #else
-    last_error_ = event->getMessage();
-    #endif
-  }
-  else if (event->getLevel() == log4cxx::Level::getWarn())
-  {
-    msg->level = rosgraph_msgs::Log::WARN;
-  }
-  else if (event->getLevel() == log4cxx::Level::getInfo())
-  {
-    msg->level = rosgraph_msgs::Log::INFO;
-  }
-  else if (event->getLevel() == log4cxx::Level::getDebug())
-  {
-    msg->level = rosgraph_msgs::Log::DEBUG;
-  }
-
-  msg->name = this_node::getName();
-  #ifdef _MSC_VER
-    LOG4CXX_ENCODE_CHAR(tmpstr, event->getMessage()); // has to handle LogString with wchar types.
-    msg->msg = tmpstr; // tmpstr gets instantiated inside the LOG4CXX_ENCODE_CHAR macro
-  #else
-  msg->msg = event->getMessage();
-  #endif
-
-  const log4cxx::spi::LocationInfo& info = event->getLocationInformation();
-  msg->file = info.getFileName();
-  msg->function = info.getMethodName();
-  msg->line = info.getLineNumber();
-
-  this_node::getAdvertisedTopics(msg->topics);
-
-  boost::mutex::scoped_lock lock(queue_mutex_);
-  log_queue_.push_back(msg);
-  queue_condition_.notify_all();
 }
 
 void ROSOutAppender::logThread()
