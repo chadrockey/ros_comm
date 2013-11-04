@@ -42,14 +42,6 @@
 #endif
 #include "rosgraph_msgs/Log.h"
 
-#include "log4cxx/logger.h"
-#include "log4cxx/rollingfileappender.h"
-#include "log4cxx/patternlayout.h"
-#include "log4cxx/helpers/pool.h"
-#ifdef _MSC_VER
-  #include "log4cxx/helpers/transcoder.h" // to decode std::string -> LogStrings on windows
-#endif
-
 /**
  * @mainpage
  *
@@ -65,11 +57,6 @@
 class Rosout
 {
 public:
-  log4cxx::LoggerPtr logger_;
-  ros::NodeHandle node_;
-  ros::Subscriber rosout_sub_;
-  ros::Publisher agg_pub_;
-
   Rosout()
   {
     init();
@@ -77,84 +64,10 @@ public:
 
   void init()
   {
-    //calculate log directory
-#ifdef _MSC_VER
-    std::string log_file_name_str = ros::file_log::getLogDirectory() + "/rosout.log";
-    LOG4CXX_DECODE_CHAR(log_file_name, log_file_name_str); // this instantiates log_file_name as type LogString as well
-    std::string empty_str = "";
-    LOG4CXX_DECODE_CHAR(log_empty, empty_str);
-#else
-    std::string log_file_name = ros::file_log::getLogDirectory() + "/rosout.log";
-    std::string log_empty = "";
-#endif
-
-    logger_ = log4cxx::Logger::getRootLogger();
-    log4cxx::LayoutPtr layout = new log4cxx::PatternLayout(log_empty);
-    log4cxx::RollingFileAppenderPtr appender = new log4cxx::RollingFileAppender(layout, log_file_name, true);
-    logger_->addAppender( appender );
-    appender->setMaximumFileSize(100*1024*1024);
-    appender->setMaxBackupIndex(10);
-    log4cxx::helpers::Pool pool;
-    appender->activateOptions(pool);
-
-    std::cout << "logging to " << log_file_name.c_str() << std::endl;
-
-    LOG4CXX_INFO(logger_, "\n\n" << ros::Time::now() << "  Node Startup\n");
-
-    agg_pub_ = node_.advertise<rosgraph_msgs::Log>("/rosout_agg", 0);
-    std::cout << "re-publishing aggregated messages to /rosout_agg" << std::endl;
-
-    rosout_sub_ = node_.subscribe("/rosout", 0, &Rosout::rosoutCallback, this);
-    std::cout << "subscribed to /rosout" << std::endl;
   }
 
   void rosoutCallback(const rosgraph_msgs::Log::ConstPtr& msg)
   {
-    agg_pub_.publish(msg);
-
-    std::stringstream ss;
-    ss << msg->header.stamp << " ";
-    switch (msg->level)
-    {
-    case rosgraph_msgs::Log::FATAL:
-      ss << "FATAL ";
-      break;
-    case rosgraph_msgs::Log::ERROR:
-      ss << "ERROR ";
-      break;
-    case rosgraph_msgs::Log::WARN:
-      ss << "WARN ";
-      break;
-    case rosgraph_msgs::Log::DEBUG:
-      ss << "DEBUG ";
-      break;
-    case rosgraph_msgs::Log::INFO:
-      ss << "INFO ";
-      break;
-    default:
-      ss << msg->level << " ";
-    }
-
-    ss << "[" << msg->file << ":" << msg->line << "(" << msg->function << ") ";
-
-    ss << "[topics: ";
-    std::vector<std::string>::const_iterator it = msg->topics.begin();
-    std::vector<std::string>::const_iterator end = msg->topics.end();
-    for ( ; it != end; ++it )
-    {
-      const std::string& topic = *it;
-
-      if ( it != msg->topics.begin() )
-      {
-        ss << ", ";
-      }
-
-      ss << topic;
-    }
-    ss << "] ";
-
-    ss << msg->msg;
-    LOG4CXX_INFO(logger_, ss.str());
   }
 };
 
