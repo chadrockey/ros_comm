@@ -47,6 +47,9 @@
   #include <unistd.h>
 #endif
 
+// ANDROID For readv() and writev()
+#include <sys/uio.h>
+
 namespace ros
 {
 
